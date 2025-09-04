@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PixiJS Egg</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pixi.js/7.3.2/pixi.min.js"></script>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background: linear-gradient(135deg, #87CEEB, #98FB98);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            font-family: Arial, sans-serif;
+        }
+        #gameContainer {
+            border: 3px solid #8B4513;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+        }
+        .instructions {
+            position: absolute;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: #2F4F4F;
+            text-align: center;
+            font-size: 18px;
+            font-weight: bold;
+            text-shadow: 2px 2px 4px rgba(255,255,255,0.8);
+        }
+    </style>
+</head>
+<body>
+    <div class="instructions">Click and drag the egg!</div>
+    <div id="gameContainer"></div>
+
+    <script>
+        // Create the application
+        const app = new PIXI.Application({
+            width: 800,
+            height: 600,
+            backgroundColor: 0xF0F8FF,
+            antialias: true
+        });
+
+        // Add the canvas to the HTML document
+        document.getElementById('gameContainer').appendChild(app.view);
+
+        // Create egg container
+        const eggContainer = new PIXI.Container();
+        app.stage.addChild(eggContainer);
+
+        // Create egg graphics
+        const egg = new PIXI.Graphics();
+        
+        // Draw the egg shape with gradient-like effect
+        function drawEgg() {
+            egg.clear();
+            
+            // Main egg body (ellipse with modified bottom)
+            egg.beginFill(0xFFFFF0); // Cream white
+            egg.drawEllipse(0, 0, 80, 100);
+            egg.endFill();
+            
+            // Add some shading
+            egg.beginFill(0xF5F5DC, 0.3); // Beige shadow
+            egg.drawEllipse(-10, 10, 70, 90);
+            egg.endFill();
+            
+            // Add highlight
+            egg.beginFill(0xFFFFFF, 0.6); // White highlight
+            egg.drawEllipse(-20, -20, 40, 50);
+            egg.endFill();
+            
+            // Add border
+            egg.lineStyle(3, 0xD2691E, 1); // Chocolate brown border
+            egg.drawEllipse(0, 0, 80, 100);
+            egg.lineStyle(0);
+        }
+
+        drawEgg();
+        eggContainer.addChild(egg);
+
+        // Position egg in center
+        eggContainer.x = app.screen.width / 2;
+        eggContainer.y = app.screen.height / 2;
+
+        // Make egg interactive
+        eggContainer.interactive = true;
+        eggContainer.buttonMode = true;
+
+        // Add some floating particles around the egg
+        const particles = [];
+        for (let i = 0; i < 10; i++) {
+            const particle = new PIXI.Graphics();
+            particle.beginFill(0xFFD700, 0.6); // Gold particles
+            particle.drawCircle(0, 0, Math.random() * 3 + 2);
+            particle.endFill();
+            
+            particle.x = Math.random() * app.screen.width;
+            particle.y = Math.random() * app.screen.height;
+            particle.vx = (Math.random() - 0.5) * 2;
+            particle.vy = (Math.random() - 0.5) * 2;
+            
+            particles.push(particle);
+            app.stage.addChild(particle);
+        }
+
+        // Drag functionality
+        let isDragging = false;
+        let dragOffset = { x: 0, y: 0 };
+
+        eggContainer.on('pointerdown', (event) => {
+            isDragging = true;
+            const position = event.data.global;
+            dragOffset.x = position.x - eggContainer.x;
+            dragOffset.y = position.y - eggContainer.y;
+            
+            // Add some bounce effect
+            eggContainer.scale.set(1.1);
+        });
+
+        eggContainer.on('pointermove', (event) => {
+            if (isDragging) {
+                const position = event.data.global;
+                eggContainer.x = position.x - dragOffset.x;
+                eggContainer.y = position.y - dragOffset.y;
+            }
+        });
+
+        eggContainer.on('pointerup', () => {
+            isDragging = false;
+            eggContainer.scale.set(1.0);
+        });
+
+        eggContainer.on('pointerupoutside', () => {
+            isDragging = false;
+            eggContainer.scale.set(1.0);
+        });
+
+        // Add hover effect
+        eggContainer.on('pointerover', () => {
+            if (!isDragging) {
+                eggContainer.scale.set(1.05);
+            }
+        });
+
+        eggContainer.on('pointerout', () => {
+            if (!isDragging) {
+                eggContainer.scale.set(1.0);
+            }
+        });
+
+        // Animation loop
+        let time = 0;
+        app.ticker.add(() => {
+            time += 0.02;
+            
+            // Gentle floating animation when not being dragged
+            if (!isDragging) {
+                eggContainer.y += Math.sin(time) * 0.5;
+                eggContainer.rotation = Math.sin(time * 0.5) * 0.05;
+            }
+            
+            // Animate particles
+            particles.forEach(particle => {
+                particle.x += particle.vx;
+                particle.y += particle.vy;
+                
+                // Bounce off edges
+                if (particle.x < 0 || particle.x > app.screen.width) {
+                    particle.vx *= -1;
+                }
+                if (particle.y < 0 || particle.y > app.screen.height) {
+                    particle.vy *= -1;
+                }
+                
+                // Keep particles in bounds
+                particle.x = Math.max(0, Math.min(app.screen.width, particle.x));
+                particle.y = Math.max(0, Math.min(app.screen.height, particle.y));
+                
+                // Add some sparkle
+                particle.alpha = 0.5 + Math.sin(time * 3 + particle.x * 0.01) * 0.3;
+            });
+        });
+
+        // Handle window resize
+        window.addEventListener('resize', () => {
+            app.renderer.resize(window.innerWidth, window.innerHeight);
+        });
+    </script>
+</body>
+</html>
