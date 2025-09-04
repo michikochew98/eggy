@@ -35,26 +35,25 @@
     </style>
 </head>
 <body>
+    <!-- Instructions text -->
     <div class="instructions">Click and drag the egg!</div>
+    <!-- Container for PixiJS canvas -->
     <div id="gameContainer"></div>
 
     <script>
-        // Create the application
+        // Create the PixiJS application
         const app = new PIXI.Application({
-            width: 800,
-            height: 600,
+            width: window.innerWidth,
+            height: window.innerHeight,
             backgroundColor: 0xF0F8FF,
-            antialias: true
+            antialias: true,
+            resizeTo: window
         });
 
-        // Add the canvas to the HTML document
+        // Add PixiJS canvas to the DOM
         document.getElementById('gameContainer').appendChild(app.view);
 
-        // Create egg container
-        const eggContainer = new PIXI.Container();
-        app.stage.addChild(eggContainer);
-
-        // Create egg graphics
+        // Create the egg graphics object
         const egg = new PIXI.Graphics();
         
         // Draw the egg shape with gradient-like effect
@@ -83,17 +82,18 @@
         }
 
         drawEgg();
-        eggContainer.addChild(egg);
+        // Add egg to the stage
+        app.stage.addChild(egg);
 
-        // Position egg in center
-        eggContainer.x = app.screen.width / 2;
-        eggContainer.y = app.screen.height / 2;
+        // Position egg in center of the screen
+        egg.x = app.screen.width / 2;
+        egg.y = app.screen.height / 2;
 
-        // Make egg interactive
-        eggContainer.interactive = true;
-        eggContainer.buttonMode = true;
+        // Make egg interactive and show pointer cursor
+        egg.interactive = true;
+        egg.buttonMode = true;
 
-        // Add some floating particles around the egg
+        // Create floating particles around the egg
         const particles = [];
         for (let i = 0; i < 10; i++) {
             const particle = new PIXI.Graphics();
@@ -101,6 +101,7 @@
             particle.drawCircle(0, 0, Math.random() * 3 + 2);
             particle.endFill();
             
+            // Random initial position and velocity
             particle.x = Math.random() * app.screen.width;
             particle.y = Math.random() * app.screen.height;
             particle.vx = (Math.random() - 0.5) * 2;
@@ -110,60 +111,58 @@
             app.stage.addChild(particle);
         }
 
-        // Drag functionality
+        // Variables for drag functionality
         let isDragging = false;
         let dragOffset = { x: 0, y: 0 };
 
-        eggContainer.on('pointerdown', (event) => {
+        // Global pointermove handler to update egg position
+        function onDragMove(e) {
+            const position = { x: e.clientX, y: e.clientY };
+            egg.x = position.x - dragOffset.x;
+            egg.y = position.y - dragOffset.y;
+        }
+
+        // Start dragging the egg and add global pointermove listener
+        egg.on('pointerdown', (event) => {
             isDragging = true;
             const position = event.data.global;
-            dragOffset.x = position.x - eggContainer.x;
-            dragOffset.y = position.y - eggContainer.y;
-            
-            // Add some bounce effect
-            eggContainer.scale.set(1.1);
+            dragOffset.x = position.x - egg.x;
+            dragOffset.y = position.y - egg.y;
+            egg.scale.set(1.1);
+            window.addEventListener('pointermove', onDragMove);
         });
 
-        eggContainer.on('pointermove', (event) => {
-            if (isDragging) {
-                const position = event.data.global;
-                eggContainer.x = position.x - dragOffset.x;
-                eggContainer.y = position.y - dragOffset.y;
-            }
-        });
-
-        eggContainer.on('pointerup', () => {
+        // Stop dragging the egg and remove global listener
+        function stopDragging() {
             isDragging = false;
-            eggContainer.scale.set(1.0);
-        });
+            egg.scale.set(1.0);
+            window.removeEventListener('pointermove', onDragMove);
+        }
+        egg.on('pointerup', stopDragging);
+        egg.on('pointerupoutside', stopDragging);
 
-        eggContainer.on('pointerupoutside', () => {
-            isDragging = false;
-            eggContainer.scale.set(1.0);
-        });
-
-        // Add hover effect
-        eggContainer.on('pointerover', () => {
+        // Hover effect for egg
+        egg.on('pointerover', () => {
             if (!isDragging) {
-                eggContainer.scale.set(1.05);
+                egg.scale.set(1.05);
             }
         });
 
-        eggContainer.on('pointerout', () => {
+        egg.on('pointerout', () => {
             if (!isDragging) {
-                eggContainer.scale.set(1.0);
+                egg.scale.set(1.0);
             }
         });
 
-        // Animation loop
+        // Animation loop for floating effect and particles
         let time = 0;
         app.ticker.add(() => {
             time += 0.02;
             
             // Gentle floating animation when not being dragged
             if (!isDragging) {
-                eggContainer.y += Math.sin(time) * 0.5;
-                eggContainer.rotation = Math.sin(time * 0.5) * 0.05;
+                egg.y += Math.sin(time) * 0.5;
+                egg.rotation = Math.sin(time * 0.5) * 0.05;
             }
             
             // Animate particles
@@ -171,7 +170,7 @@
                 particle.x += particle.vx;
                 particle.y += particle.vy;
                 
-                // Bounce off edges
+                // Bounce off edges of the screen
                 if (particle.x < 0 || particle.x > app.screen.width) {
                     particle.vx *= -1;
                 }
@@ -183,12 +182,12 @@
                 particle.x = Math.max(0, Math.min(app.screen.width, particle.x));
                 particle.y = Math.max(0, Math.min(app.screen.height, particle.y));
                 
-                // Add some sparkle
+                // Add sparkle effect
                 particle.alpha = 0.5 + Math.sin(time * 3 + particle.x * 0.01) * 0.3;
             });
         });
 
-        // Handle window resize
+        // Resize PixiJS renderer when window size changes
         window.addEventListener('resize', () => {
             app.renderer.resize(window.innerWidth, window.innerHeight);
         });
